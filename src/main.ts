@@ -17,17 +17,23 @@ document.body.appendChild(renderer.domElement);
 const geometry = new THREE.BoxGeometry(1, 1, 1);
 const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
 const cube = new THREE.Mesh(geometry, material);
+cube.position.x = 2;
 scene.add(cube);
 
-const light = new THREE.PointLight(0xff9900, 100, 0);
+const light = new THREE.PointLight(0xffffff, 100, 0);
 light.position.set(0, 0, 10);
-light.castShadow = true;
 scene.add(light);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-scene.add(directionalLight);
+camera.position.z = 15;
 
-camera.position.z = 10;
+const geometry2 = new THREE.PlaneGeometry(1, 1);
+const m2 = new THREE.MeshBasicMaterial({
+  color: 0xf3f4ff,
+  side: THREE.DoubleSide,
+});
+const plane = new THREE.Mesh(geometry2, m2);
+plane.rotation.x = 10;
+scene.add(plane);
 
 function animate() {
   requestAnimationFrame(animate);
