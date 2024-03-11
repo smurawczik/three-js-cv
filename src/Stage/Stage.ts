@@ -64,7 +64,13 @@ export class Stage {
     const loader = new FBXLoader();
     loader.load("./src/assets/playing_drums.fbx", (gltf) => {
       gltf.scale.set(0.025, 0.025, 0.025);
-      gltf.position.set(0, 0, 2);
+      gltf.position.set(0, -1, 2);
+      gltf.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
       this.mixer = new THREE.AnimationMixer(gltf);
       this.mixer.clipAction(gltf.animations[0]).play();
       this.scene.add(gltf);
@@ -84,6 +90,7 @@ export class Stage {
 
   private init() {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.shadowMap.enabled = true;
     document.body.appendChild(this.renderer.domElement);
     // this.scene.background = new THREE.Color(0xffff00);
     // this.scene.fog = new THREE.Fog(0xffff00, 0, 20);
