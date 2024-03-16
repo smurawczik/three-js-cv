@@ -1,104 +1,67 @@
 import "./global.css";
 
 import * as THREE from "three";
-import Stats from "three/addons/libs/stats.module.js";
-import { FBXLoader } from "three/examples/jsm/Addons.js";
+import { circleDrummer, loadDrummer } from "./custom-scene/drummer";
+import { createPerspectiveCamera, setCameraZPosition } from "./helpers/camera";
+import { createClock } from "./helpers/clock";
+import {
+  createPlane,
+  setPlanePosition,
+  setPlaneReceiveShadow,
+  setPlaneRotation,
+} from "./helpers/plane";
+import { createRenderer, initializeRenderer, render } from "./helpers/renderer";
+import { addResizeListener } from "./helpers/resize.listener";
+import { createScene } from "./helpers/scene";
+import { createStats, updateStats } from "./helpers/stats";
+import { createSpotlight } from "./helpers/spotlight";
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-  90,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-const renderer = new THREE.WebGLRenderer();
-const clock = new THREE.Clock();
-let mixer: THREE.AnimationMixer | undefined = undefined;
-let drummer: THREE.Object3D | undefined = undefined;
-let t = 0;
+(async function () {
+  const SCENE = createScene();
+  const CAMERA = createPerspectiveCamera();
+  const RENDERER = createRenderer();
+  const CLOCK = createClock();
+  const STATS = createStats();
 
-init();
+  let drummerMixer: THREE.AnimationMixer | undefined = undefined;
+  let drummer: THREE.Object3D | undefined = undefined;
 
-const planeGeometry = new THREE.PlaneGeometry(40, 20);
-const planeMaterial = new THREE.MeshPhongMaterial({
-  color: "purple",
-  side: THREE.DoubleSide,
-});
+  const PLANE = createPlane(40, 20, "purple", false);
+  setPlanePosition(PLANE, new THREE.Vector3(0, -1, 0));
+  setPlaneRotation(PLANE, new THREE.Euler(Math.PI / 2, 0, 0));
+  setPlaneReceiveShadow(PLANE, true);
+  SCENE.add(PLANE);
 
-// Create plane mesh
-const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-plane.rotation.x = Math.PI / 2; // Rotate the plane to make it horizontal
-plane.position.y = -1; // Move the plane slightly below the origin
-plane.receiveShadow = true; // Enable shadows on the plane
-scene.add(plane);
+  const spotLight = createSpotlight();
+  SCENE.add(spotLight);
 
-const spotLight = new THREE.SpotLight(0xffffff, 1000);
-spotLight.position.set(0, 10, 0); // Position the spotlight above the plane
-spotLight.castShadow = true;
-spotLight.angle = 0.6;
-spotLight.penumbra = 0.6;
-spotLight.decay = 2;
-spotLight.distance = 200;
-scene.add(spotLight);
+  function animate() {
+    requestAnimationFrame(animate);
 
-camera.position.z = 8;
-camera.position.y = 2;
+    updateStats(STATS);
 
-const loader = new FBXLoader();
-loader.load("./src/assets/playing_drums.fbx", (gltf) => {
-  gltf.scale.set(0.025, 0.025, 0.025);
-  gltf.position.set(0, -1, 2);
-  gltf.rotation.x = 0.05;
-  gltf.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
-  mixer = new THREE.AnimationMixer(gltf);
-  mixer.clipAction(gltf.animations[0]).play();
-  scene.add(gltf);
-  drummer = gltf;
-});
+    const delta = CLOCK.getDelta();
+    if (drummerMixer) drummerMixer.update(delta);
 
-function animate() {
-  requestAnimationFrame(animate);
-  t += 0.01;
-  const delta = clock.getDelta();
+    if (drummer) circleDrummer(drummer, CLOCK.getElapsedTime());
 
-  if (drummer) {
-    const timepassed = clock.getElapsedTime();
-    drummer.position.set(
-      Math.sin(timepassed / 2) * 3,
-      -1,
-      Math.cos(timepassed / 2) * 3
-    );
+    render(RENDERER, SCENE, CAMERA);
   }
 
-  if (mixer) mixer.update(delta);
+  async function init() {
+    // Set camera position
+    setCameraZPosition(CAMERA, new THREE.Vector3(0, 2, 12));
 
-  renderer.render(scene, camera);
-}
+    loadDrummer(SCENE).then((data) => {
+      drummerMixer = data.mixer;
+      drummer = data.drummer;
+    });
 
-function init() {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  document.body.appendChild(renderer.domElement);
-  addStats();
-  animate();
+    await initializeRenderer(RENDERER);
+    await addResizeListener(RENDERER, CAMERA);
 
-  window.onresize = () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    animate();
+  }
 
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  };
-  scene.background = new THREE.Color(0x000000);
-  scene.fog = new THREE.Fog(0x000000, 0, 20);
-}
-
-function addStats() {
-  const stats = new Stats();
-  document.body.appendChild(stats.dom);
-  return stats;
-}
+  await init();
+})();
